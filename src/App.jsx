@@ -876,6 +876,30 @@ function Settings({ onClose, bookings, clients, quotes }) {
     a.click();
   }
 
+  function importData(file) {
+    if (!file) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const d = JSON.parse(r.result);
+        const mergeById = (a, b) => {
+          const m = new Map((a || []).map((x) => [x.id, x]));
+          (b || []).forEach((x) => { if (x && x.id) m.set(x.id, x); });
+          return [...m.values()];
+        };
+        save("bookings", mergeById(load("bookings", []), d.bookings));
+        save("clients", mergeById(load("clients", []), d.clients));
+        save("quotes", mergeById(load("quotes", []), d.quotes));
+        const n = (d.bookings || []).length + (d.clients || []).length + (d.quotes || []).length;
+        alert(`Imported ${n} item(s) — merged with your existing data. Reloading…`);
+        location.reload();
+      } catch {
+        alert("That doesn't look like a VisualBook backup file.");
+      }
+    };
+    r.readAsText(file);
+  }
+
   return (
     <Modal onClose={onClose}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -940,7 +964,15 @@ function Settings({ onClose, bookings, clients, quotes }) {
       <div style={{ fontSize: 13, color: MUTED, marginBottom: 10 }}>
         {bookings.length} bookings · {clients.length} clients · {quotes.length} quotes — all stored locally.
       </div>
-      <Btn variant="dark" style={{ width: "100%", marginBottom: 10 }} onClick={exportData}>⤓ Export Backup (JSON)</Btn>
+      <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+        <Btn variant="dark" style={{ flex: 1 }} onClick={exportData}>⤓ Export Backup</Btn>
+        <Btn variant="dark" style={{ flex: 1 }} onClick={() => document.getElementById("vb-import").click()}>⤒ Import Backup</Btn>
+      </div>
+      <input id="vb-import" type="file" accept="application/json,.json" style={{ display: "none" }}
+        onChange={(e) => importData(e.target.files[0])} />
+      <div style={{ fontSize: 11, color: MUTED, marginBottom: 14 }}>
+        Moving to a new link? Export here, open the new link, then Import — your bookings & clients come with you.
+      </div>
       <Btn variant="danger" style={{ width: "100%" }} onClick={() => {
         if (confirm("ERASE ALL local data (bookings, clients, quotes)? This cannot be undone.")) {
           localStorage.removeItem("vb_bookings"); localStorage.removeItem("vb_clients"); localStorage.removeItem("vb_quotes");
